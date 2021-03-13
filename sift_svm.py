@@ -13,8 +13,9 @@ from matplotlib import pyplot as plt
 logger = logging.getLogger()
 
 BOW_NUM_TRAINING_SAMPLES_PER_CLASS = 30
-SVM_NUM_TRAINING_SAMPLES_PER_CLASS = 100
+SVM_NUM_TRAINING_SAMPLES_PER_CLASS = 220
 BOW_NUM_CLUSTERS = 40
+SVM_SCORE_THRESHOLD = 0.15
 
 class MyBoW:
 	def __init__(self, dextractor, dmatcher, cluster_count):
@@ -68,7 +69,11 @@ class MySVM:
 		self._svm = new_svm
 
 	def predict(self, descriptros):
-		return self._svm.predict(descriptros)
+		raw_prediction = self._svm.predict(descriptros, flags=cv2.ml.STAT_MODEL_RAW_OUTPUT)
+		logger.debug(raw_prediction)
+		score = raw_prediction[1][0][0]
+		label = -1 if score >= SVM_SCORE_THRESHOLD else 1 if score <= (SVM_SCORE_THRESHOLD * -1) else 0
+		return label		
 
 class MyMatcher:
 	def createFlann():

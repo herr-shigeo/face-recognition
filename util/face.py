@@ -35,7 +35,7 @@ class HogDetector(faceDetector):
 		y1 = max(0, face.bottom())
 		return (x0, y0, x1-x0+1, y1-y0+1)
 
-def detectAndSaveFace(input_dir, output_dir, useHaar):
+def detectAndSaveFace(input_dirs, output_dir, useHaar):
 	logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 	if useHaar:
@@ -46,44 +46,46 @@ def detectAndSaveFace(input_dir, output_dir, useHaar):
 	files_processed = 0
 	faces_detected = 0
 
-	for filename in os.listdir(input_dir):
-		orig_img = cv2.imread(os.path.join(input_dir, filename), cv2.IMREAD_GRAYSCALE)	
-		if orig_img is None:
-			logger.warning('ignoring {0}'.format(filename))
-			continue
+	for input_dir in input_dirs:
+		for filename in os.listdir(input_dir):
+			orig_img = cv2.imread(os.path.join(input_dir, filename), cv2.IMREAD_GRAYSCALE)	
+			if orig_img is None:
+				logger.warning('ignoring {0}'.format(filename))
+				continue
 
-		faces = detector.run(orig_img)
-		logger.debug('Detected({0}) in {1}'.format(len(faces), filename))
-		files_processed += 1
+			faces = detector.run(orig_img)
+			logger.debug('Detected({0}) in {1}'.format(len(faces), filename))
+			files_processed += 1
 
-		# Save the detected bounding boxes
-		for face in faces:
-			(x, y, w, h) = detector.getVertexes(face)
-			face_img = cv2.resize(orig_img[y:y+h, x:x+w], SAVED_IMAGE_SIZE)
-			face_filename = '{0}/{1}.pgm'.format(output_dir, faces_detected)
-			cv2.imwrite(face_filename, face_img)
-			faces_detected += 1
+			# Save the detected bounding boxes
+			for face in faces:
+				(x, y, w, h) = detector.getVertexes(face)
+				face_img = cv2.resize(orig_img[y:y+h, x:x+w], SAVED_IMAGE_SIZE)
+				face_filename = '{0}/{1}.pgm'.format(output_dir, faces_detected)
+				cv2.imwrite(face_filename, face_img)
+				faces_detected += 1
 
 	logger.info('files processed = {0}, faces detected = {1}'.format(files_processed, faces_detected))
 	return 0
 
-def reindexFiles(input_dir):
+def reindexFiles(input_dirs, output_dir):
 	index = 0
-	for filename in os.listdir(input_dir):
-		orig_file = os.path.join(input_dir, filename)
-		new_file  = os.path.join(input_dir, 'new_{0}.pgm'.format(index))
-		os.rename(orig_file, new_file)
-		index += 1
-	for filename in os.listdir(input_dir):
-		orig_file = os.path.join(input_dir, filename)
-		new_file = os.path.join(input_dir, filename.split('_')[1])
+	for input_dir in input_dirs:
+		for filename in os.listdir(input_dir):
+			orig_file = os.path.join(input_dir, filename)
+			new_file  = os.path.join(output_dir, 'new_{0}.pgm'.format(index))
+			os.rename(orig_file, new_file)
+			index += 1
+	for filename in os.listdir(output_dir):
+		orig_file = os.path.join(output_dir, filename)
+		new_file = os.path.join(output_dir, filename.split('_')[1])
 		os.rename(orig_file, new_file)
 	return 0
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--haar', action='store_true', help='use Haar cascades')
-	parser.add_argument('-i', '--input-dir', action='store')
+	parser.add_argument('-i', '--input-dirs', action='store')
 	parser.add_argument('-o', '--output-dir', action='store')
 	parser.add_argument('-v', '--verbose', action='store_true')
 	parser.add_argument('--reindex', action='store_true')
@@ -94,13 +96,13 @@ if __name__ == '__main__':
 		logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
 	if args.reindex:
-		if args.input_dir is None:
+		if args.input_dirs is None or args.output_dir is None:
 			parser.print_help()
 			sys.exit(1)
-		sys.exit(reindexFiles(args.input_dir))
+		sys.exit(reindexFiles(args.input_dirs.split(), args.output_dir))
 
-	if args.input_dir is None or args.output_dir is None:
+	if args.input_dirs is None or args.output_dir is None:
 		parser.print_help()
 		sys.exit(1)
 	
-	sys.exit(detectAndSaveFace(args.input_dir, args.output_dir, args.haar))
+	sys.exit(detectAndSaveFace(args.input_dirs.split(), args.output_dir, args.haar))
